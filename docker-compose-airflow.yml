@@ -1,51 +1,34 @@
-version: '3.8'
+version: '3.0'
 
 services:
-  # One-time setup: creates Airflow's own metadata tables inside the
-  # `airflow` database (a separate schema from your job data, already
-  # created in your existing MySQL server). Safe to leave deployed —
-  # it exits after running once and won't repeat the work.
+  # initialize Airflow database
   initdb:
     image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
-    command: uv run airflow db init
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/airflow
-    restart: on-failure
+    command: uv run --env-file=.env airflow db init # initialize Airflow metadata DB
+    restart: on-failure # restart if fails
     deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        max_attempts: 3   # don't retry forever if something's genuinely wrong
+      mode: replicated #swarm replicated mode
+      replicas: 1 
       placement:
-        constraints: [node.labels.airflow==true]
+        constraints: [node.labels.airflow==true]  # 僅部署在標記為 airflow 的節點
     networks:
       - my_swarm_network
 
-  # One-time setup: creates the admin login. NOTE: once this user exists,
-  # re-running this command will fail every time (Airflow won't let you
-  # create a duplicate username) — that's expected, not a bug. After your
-  # first successful deploy, you can remove this service from the stack.
+  # create airflow user
   create-user:
     image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
+    # create user account 
     command: >-
-      uv run airflow users create
+      uv run --env-file=.env airflow users create
       --username admin --firstname clara --lastname tsai
       --role Admin -p admin
       --email clara80416@gmail.com
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/airflow
     depends_on:
       - initdb
     restart: on-failure
     deploy:
       mode: replicated
       replicas: 1
-      restart_policy:
-        condition: on-failure
-        max_attempts: 3
       placement:
         constraints: [node.labels.airflow==true]
     networks:
@@ -53,25 +36,15 @@ services:
 
   webserver:
     image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
-    hostname: "airflow-webserver"
-    command: uv run airflow webserver -p 5000
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/airflow
-      AIRFLOW__CORE__DAGS_FOLDER: /job_airflow/dataflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      TZ: Asia/Taipei
-      PYTHONPATH: /job_airflow  
+    hostname: "airflow-webserver"  
+    command: uv run --env-file=.env airflow webserver -p 5000  # 啟動 webserver，使用 5000 port
     depends_on:
-      - initdb
-    restart: always
+      - initdb  
+    restart: always  
     ports:
-      - "5000:5000"
-    volumes:
-      # bind mount, not baked-in — see explanation above. Adjust the
-      # left-hand path to wherever job_airflow actually lives on this machine.
-      - /home/clara/job_airflow/dataflow/dags:/job_airflow/dataflow/dags
-      - /home/clara/job_airflow/dataflow/etl:/job_airflow/dataflow/etl
+      - 5000:5000  
+    environment:
+      - TZ=Asia/Taipei 
     deploy:
       mode: replicated
       replicas: 1
@@ -79,27 +52,16 @@ services:
         constraints: [node.labels.airflow==true]
     networks:
       - my_swarm_network
-
   scheduler:
     image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
     hostname: "airflow-scheduler"
-    command: uv run airflow scheduler
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/airflow
-      AIRFLOW__CORE__DAGS_FOLDER: /job_airflow/dataflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      TZ: Asia/Taipei
-      PYTHONPATH: /job_airflow  
+    command: uv run --env-file=.env airflow scheduler  # start scheduler
     depends_on:
       - initdb
     restart: always
+    environment:
+      - TZ=Asia/Taipei
     volumes:
-      - /home/clara/job_airflow/dataflow/dags:/job_airflow/dataflow/dags
-      - /home/clara/job_airflow/dataflow/etl:/job_airflow/dataflow/etl
-      # lets the scheduler reach OUT to the host's Docker daemon, so
-      # DockerOperator tasks can launch sibling containers (e.g. your
-      # scraper image) — same mechanism the reference repo uses.
       - /var/run/docker.sock:/var/run/docker.sock
     deploy:
       mode: replicated
@@ -112,3 +74,4 @@ services:
 networks:
   my_swarm_network:
     external: true
+

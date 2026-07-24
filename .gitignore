@@ -8,3 +8,13 @@ wheels/
 
 # Virtual environments
 .venv
+
+# other 
+.vscode/
+*.pytest_cache/
+*.vscode
+.env
+*.pyc
+*.egg-info
+.cache
+build/
