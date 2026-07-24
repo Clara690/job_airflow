@@ -1,0 +1,13 @@
+[project]
+name = "job-airflow"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "apache-airflow==2.10.5",
+    "apache-airflow-providers-celery==3.8.3",
+    "apache-airflow-providers-docker==4.3.0",
+    "celery[redis]>=5.6.3",
+    "flower>=2.0.1",
+]
