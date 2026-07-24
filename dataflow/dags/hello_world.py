@@ -1,7 +1,5 @@
 # 匯入 airflow 模組（主要是為了使用 airflow.DAG）
 import airflow
-
-# 從自定義模組 dataflow.constant 匯入 DAG 的預設參數與最大執行數
 from dataflow.constant import (
     DEFAULT_ARGS,  # 預設參數，通常會定義 start_date、owner、retries 等
     MAX_ACTIVE_RUNS,  # 此 DAG 同時間最多允許幾個執行實例（通常設為 1 或 3）

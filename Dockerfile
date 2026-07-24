@@ -20,9 +20,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
 
 # now copy the actual project code
-COPY ./dags/ ./dags/
-COPY ./etl/ ./etl/
-COPY constant.py ./
-
+COPY ./pyproject.toml /job_airflow
+COPY ./uv.lock /job_airflow
+COPY ./dataflow /job_airflow/dataflow
 # no CMD/ENTRYPOINT here on purpose — docker-compose-airflow.yml supplies
 # a different command per service (webserver, scheduler, worker, etc.)

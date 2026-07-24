@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # One-time setup: creates Airflow's own metadata tables inside the
+  # `airflow` database (a separate schema from your job data, already
+  # created in your existing MySQL server). Safe to leave deployed —
+  # it exits after running once and won't repeat the work.
+  initdb:
+    image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
+    command: uv run airflow db init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/airflow
+    restart: on-failure
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3   # don't retry forever if something's genuinely wrong
+      placement:
+        constraints: [node.labels.airflow==true]
+    networks:
+      - my_swarm_network
+
+  # One-time setup: creates the admin login. NOTE: once this user exists,
+  # re-running this command will fail every time (Airflow won't let you
+  # create a duplicate username) — that's expected, not a bug. After your
+  # first successful deploy, you can remove this service from the stack.
+  create-user:
+    image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
+    command: >-
+      uv run airflow users create
+      --username admin --firstname clara --lastname tsai
+      --role Admin -p admin
+      --email clara80416@gmail.com
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/airflow
+    depends_on:
+      - initdb
+    restart: on-failure
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+      placement:
+        constraints: [node.labels.airflow==true]
+    networks:
+      - my_swarm_network
+
+  webserver:
+    image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
+    hostname: "airflow-webserver"
+    command: uv run airflow webserver -p 5000
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/airflow
+      AIRFLOW__CORE__DAGS_FOLDER: /job_airflow/dataflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      TZ: Asia/Taipei
+      PYTHONPATH: /job_airflow  
+    depends_on:
+      - initdb
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      # bind mount, not baked-in — see explanation above. Adjust the
+      # left-hand path to wherever job_airflow actually lives on this machine.
+      - /home/clara/job_airflow/dataflow/dags:/job_airflow/dataflow/dags
+      - /home/clara/job_airflow/dataflow/etl:/job_airflow/dataflow/etl
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.labels.airflow==true]
+    networks:
+      - my_swarm_network
+
+  scheduler:
+    image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
+    hostname: "airflow-scheduler"
+    command: uv run airflow scheduler
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/airflow
+      AIRFLOW__CORE__DAGS_FOLDER: /job_airflow/dataflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      TZ: Asia/Taipei
+      PYTHONPATH: /job_airflow  
+    depends_on:
+      - initdb
+    restart: always
+    volumes:
+      - /home/clara/job_airflow/dataflow/dags:/job_airflow/dataflow/dags
+      - /home/clara/job_airflow/dataflow/etl:/job_airflow/dataflow/etl
+      # lets the scheduler reach OUT to the host's Docker daemon, so
+      # DockerOperator tasks can launch sibling containers (e.g. your
+      # scraper image) — same mechanism the reference repo uses.
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.labels.airflow==true]
+    networks:
+      - my_swarm_network
+
+networks:
+  my_swarm_network:
+    external: true
