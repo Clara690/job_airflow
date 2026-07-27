@@ -1,6 +1,25 @@
 version: '3.0'
 
 services:
+# message broker: Redis
+  redis:
+    image: 'bitnami/redis:latest'
+    ports:
+      - 6379:6379
+    volumes:
+      - 'redis_data:/bitnami/redis/data'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes # only for internal network
+    restart: always
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.labels.airflow==true]
+    networks:
+      - my_swarm_network
+
   # initialize Airflow database
   initdb:
     image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
@@ -40,11 +59,13 @@ services:
     command: uv run --env-file=.env airflow webserver -p 5000  # 啟動 webserver，使用 5000 port
     depends_on:
       - initdb  
+      - redis
     restart: always  
     ports:
       - 5000:5000  
     environment:
-      - TZ=Asia/Taipei 
+      - TZ=Asia/Taipei
+      - PYTHONPATH=/job_airflow
     deploy:
       mode: replicated
       replicas: 1
@@ -58,11 +79,13 @@ services:
     command: uv run --env-file=.env airflow scheduler  # start scheduler
     depends_on:
       - initdb
+      - redis
     restart: always
     environment:
       - TZ=Asia/Taipei
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - PYTHONPATH=/job_airflow
+    # volumes:
+    #   - /var/run/docker.sock:/var/run/docker.sock
     deploy:
       mode: replicated
       replicas: 1
@@ -70,8 +93,33 @@ services:
         constraints: [node.labels.airflow==true]
     networks:
       - my_swarm_network
+  worker:
+    image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
+    hostname: "{{.Service.Name}}.{{.Task.Slot}}"
+    restart: always
+    environment:
+      - TZ=Asia/Taipei
+      - PYTHONPATH=/job_airflow
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - scheduler
+      - redis
+    command: uv run --env-file=.env airflow celery worker --without-mingle --without-gossip -H "celery@%h"
+    # swarm 設定
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.labels.worker==true]
+    networks:
+        - my_swarm_network
+
 
 networks:
   my_swarm_network:
     external: true
+
+volumes:
+  redis_data:
 
