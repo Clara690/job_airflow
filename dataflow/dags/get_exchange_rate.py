@@ -7,7 +7,7 @@ from dataflow.etl.get_exchange_rate import(
 with DAG(
     dag_id='get_exchange_rate',
     default_args=DEFAULT_ARGS,
-    schedule=None, # manual trigger for now
+    schedule='0 9 * * *', # update daily at 9am
     catchup=False,
     max_active_runs=MAX_ACTIVE_RUNS,
     tags=['scraper', 'exchange_rate'],
