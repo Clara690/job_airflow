@@ -32,6 +32,8 @@ services:
         constraints: [node.labels.airflow==true]  # 僅部署在標記為 airflow 的節點
     networks:
       - my_swarm_network
+    secrets:
+      - mysql_root_password
 
   # create airflow user
   create-user:
@@ -52,6 +54,8 @@ services:
         constraints: [node.labels.airflow==true]
     networks:
       - my_swarm_network
+    secrets:
+      - mysql_root_password
 
   webserver:
     image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
@@ -73,6 +77,8 @@ services:
         constraints: [node.labels.airflow==true]
     networks:
       - my_swarm_network
+    secrets:
+      - mysql_root_password
   scheduler:
     image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
     hostname: "airflow-scheduler"
@@ -93,6 +99,8 @@ services:
         constraints: [node.labels.airflow==true]
     networks:
       - my_swarm_network
+    secrets:
+      - mysql_root_password
   worker:
     image: clara690/job_airflow:${DOCKER_IMAGE_VERSION}
     hostname: "{{.Service.Name}}.{{.Task.Slot}}"
@@ -114,10 +122,15 @@ services:
         constraints: [node.labels.worker==true]
     networks:
         - my_swarm_network
-
+    secrets:
+      - mysql_root_password
 
 networks:
   my_swarm_network:
+    external: true
+
+secrets:
+  mysql_root_password:
     external: true
 
 volumes:
