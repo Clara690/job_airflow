@@ -24,14 +24,16 @@ COPY ./local.ini /job_airflow
 COPY ./airflow.cfg /job_airflow/airflow.cfg
 COPY ./get_sql_conn.sh /job_airflow/get_sql_conn.sh
 COPY ./airflow-gce.cfg /job_airflow/airflow-gce.cfg
-COPY ./entrypoint.sh /job_airflow/entrypoint.sh
-RUN chmod +x /job_airflow/get_sql_conn.sh /job_airflow/entrypoint.sh
+RUN chmod +x /job_airflow/get_sql_conn.sh
 
 # set working directory
 WORKDIR /job_airflow
 
 # install dependencies
 RUN uv sync --frozen
+
+COPY ./entrypoint.sh /job_airflow/entrypoint.sh
+RUN chmod +x /job_airflow/entrypoint.sh
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
