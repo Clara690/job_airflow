@@ -22,6 +22,8 @@ COPY ./uv.lock /job_airflow
 COPY ./README.md /job_airflow
 COPY ./local.ini /job_airflow
 COPY ./airflow.cfg /job_airflow/airflow.cfg
+COPY ./get_sql_conn.sh /job_airflow/get_sql_conn.sh
+RUN chmod +x /job_airflow/get_sql_conn.sh
 
 # set working directory
 WORKDIR /job_airflow

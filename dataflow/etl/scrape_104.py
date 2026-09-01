@@ -29,7 +29,7 @@ def build_scrape_commands() -> list[list[str]]:
 def create_104_scraper() -> DockerOperator:
     return DockerOperator.partial(
         task_id = 'producer_scraper_104',
-        image ='clara690/scraper:0.1.1',
+        image ='clara690/scraper:0.1.2',
         network_mode = 'my_swarm_network',
         docker_url = 'unix://var/run/docker.sock',
         auto_remove = 'success',

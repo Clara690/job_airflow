@@ -17,8 +17,10 @@ services:
       replicas: 1
       placement:
         constraints: [node.labels.airflow==true]
-    networks:
-      - my_swarm_network
+    networks:                
+      my_swarm_network:
+        aliases:
+          - redis
 
   # initialize Airflow database
   initdb:
@@ -114,6 +116,8 @@ services:
       - scheduler
       - redis
     command: uv run --env-file=.env airflow celery worker --without-mingle --without-gossip -H "celery@%h"
+    secrets:
+      - mysql_root_password
     # swarm 設定
     deploy:
       mode: replicated
@@ -122,8 +126,6 @@ services:
         constraints: [node.labels.worker==true]
     networks:
         - my_swarm_network
-    secrets:
-      - mysql_root_password
 
 networks:
   my_swarm_network:
