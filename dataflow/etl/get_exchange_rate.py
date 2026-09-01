@@ -6,7 +6,7 @@ from airflow.providers.docker.operators.docker import (
 def create_exchange_rate_scraper() -> DockerOperator:
     return DockerOperator(
         task_id = 'producer_scraper_exchange_rate',
-        image ='clara690/scraper:0.1.1',
+        image ='clara690/scraper:0.1.2',
         command = "uv run python -m scraper.cli_exchange_rate",
         force_pull = True,
         network_mode = 'my_swarm_network',
