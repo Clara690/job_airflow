@@ -24,7 +24,8 @@ COPY ./local.ini /job_airflow
 COPY ./airflow.cfg /job_airflow/airflow.cfg
 COPY ./get_sql_conn.sh /job_airflow/get_sql_conn.sh
 COPY ./airflow-gce.cfg /job_airflow/airflow-gce.cfg
-RUN chmod +x /job_airflow/get_sql_conn.sh
+COPY ./entrypoint.sh /job_airflow/entrypoint.sh
+RUN chmod +x /job_airflow/get_sql_conn.sh /job_airflow/entrypoint.sh
 
 # set working directory
 WORKDIR /job_airflow
@@ -44,6 +45,8 @@ ARG AIRFLOW_USER_HOME=/job_airflow
 ARG AIRFLOW_DEPS=""
 ARG PYTHON_DEPS=""
 ENV AIRFLOW_HOME=${AIRFLOW_USER_HOME}
+
+ENTRYPOINT ["/job_airflow/entrypoint.sh"]
 
 # default -> bash
 CMD ["/bin/bash"]
